@@ -7,6 +7,26 @@ class MoviesController < ApplicationController
   end
 
   def index
+    @all_ratings = Movie.ratings
+    @movies = Movie.all
+
+    if session.length == 0
+      session[:checked_ratings] = @all_ratings
+    end
+    
+    # checked ratings
+    if params.has_key?(:ratings)
+      @movies = Movie.where(rating: params[:ratings].keys)
+      @checked_ratings = params[:ratings].keys
+      session[:ratings] = params[:ratings]
+      
+      #@rating_keys = Movie.where(rating: params[:ratings].keys).map { |movie| movie.id }
+    else
+      @movies = Movie.where(rating: session[:ratings].keys)
+      @checked_ratings = session[:ratings].keys
+    end
+    
+    # sorting
     if params.has_key?(:sort)
       if (params[:sort] == "movie_name")
         @title_highlight = true
@@ -15,8 +35,9 @@ class MoviesController < ApplicationController
         @release_highlight = true
         @movies = Movie.find(:all, :order => "release_date ASC")
       end
-    else
-      @movies = Movie.all
+    #else
+    # remove this
+    #  @movies = Movie.all
     end
   end
 
