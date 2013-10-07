@@ -9,37 +9,69 @@ class MoviesController < ApplicationController
   def index
     @all_ratings = Movie.ratings
     @movies = Movie.all
-
+    redirect_needed = false
+    sorting_redirect = false
+    
+    # new session
     if session.length == 0
-      session[:checked_ratings] = @all_ratings
+      rating_hash = Hash.new
+      @all_ratings.each do |rating|
+        rating_hash[rating] = "1"
+      end
+      session[:ratings] = rating_hash
+      session[:rating_ids] = Movie.where(rating: @all_ratings).map { |movie| movie.id }
     end
     
     # checked ratings
     if params.has_key?(:ratings)
-      @movies = Movie.where(rating: params[:ratings].keys)
       @checked_ratings = params[:ratings].keys
       session[:ratings] = params[:ratings]
-      
-      #@rating_keys = Movie.where(rating: params[:ratings].keys).map { |movie| movie.id }
+      @rating_ids = Movie.where(rating: params[:ratings].keys).map { |movie| movie.id }
+      session[:rating_ids] = @rating_ids
     else
-      @movies = Movie.where(rating: session[:ratings].keys)
       @checked_ratings = session[:ratings].keys
+      @rating_ids = session[:rating_ids]
+      redirect_needed = true
     end
     
     # sorting
     if params.has_key?(:sort)
       if (params[:sort] == "movie_name")
         @title_highlight = true
-        @movies = Movie.find(:all, :order => "title ASC")
+        @sort_type = "movie_name"
+        session[:sort_type] = @sort_type
       elsif (params[:sort] == "release_date")
         @release_highlight = true
-        @movies = Movie.find(:all, :order => "release_date ASC")
+        @sort_type = "release_date"
+        session[:sort_type] = @sort_type
       end
-    #else
-    # remove this
-    #  @movies = Movie.all
+    elsif session.has_key?(:sort_type)
+      @sort_type = session[:sort_type]
+      if (@sort_type == "movie_name")
+        @title_highlight = true
+      else
+        @release_highlight = true
+      end
+      redirect_needed = true
+    else
+      @sort_type = nil
+    end
+    
+    # perform movies query
+    if @sort_type == "movie_name"
+      @movies = Movie.find(@rating_ids, :order => "title ASC")
+    elsif @sort_type == "release_date"
+      @movies = Movie.find(@rating_ids, :order => "release_date ASC")
+    else
+      @movies = Movie.find(@rating_ids)
+    end
+    
+    if redirect_needed
+      flash.keep
+      redirect_to movies_path({:ratings => session[:ratings], :sort => session[:sort_type]})
     end
   end
+
 
   def new
     # default: render 'new' template
